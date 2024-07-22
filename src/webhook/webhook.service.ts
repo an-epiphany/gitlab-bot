@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import dayjs from 'dayjs';
 import duration from 'dayjs/plugin/duration';
 import relativeTime from 'dayjs/plugin/relativeTime';
+import 'dayjs/locale/zh.js';
 import Mustache from 'mustache';
 import { EVENT_TYPE, OBJECT_KIND, X_GITLAB_EVENT } from '../const';
 import { Config } from 'src/config';

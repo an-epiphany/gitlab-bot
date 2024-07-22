@@ -1,0 +1,35 @@
+# All node_modules directories
+node_modules
+**/dist
+
+# By default all git files
+.git
+**/.gitignore
+.github
+
+# eslint
+**/.eslintrc.cjs
+
+# npm
+!.npmrc
+
+# Docker related
+.dockerignore
+*Dockerfile*
+*docker-compose*
+
+# Log files
+logs
+**/*.log
+
+# Temp files
+tmp
+*.tmp
+
+# IDE related
+.idea
+.vscode
+
+# other
+**.DS_Store
+**/*.md
