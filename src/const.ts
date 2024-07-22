@@ -35,6 +35,7 @@ const EVENT_TYPE = {
 
 const X_GITLAB_EVENT = {
   push: 'Push Hook',
+  pipeline: 'Pipeline Hook',
   system: 'System Hook',
 };
 

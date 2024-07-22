@@ -1,9 +1,13 @@
-import { Injectable } from '@nestjs/common';
-import moment from 'moment';
+import { Injectable, Logger } from '@nestjs/common';
+import dayjs from 'dayjs';
+import duration from 'dayjs/plugin/duration';
+import relativeTime from 'dayjs/plugin/relativeTime';
 import Mustache from 'mustache';
-import { OBJECT_KIND, X_GITLAB_EVENT, EVENT_TYPE } from '../const';
-import { FastifyRequest } from 'fastify';
+import { EVENT_TYPE, OBJECT_KIND, X_GITLAB_EVENT } from '../const';
 import { Config } from 'src/config';
+
+dayjs.extend(duration);
+dayjs.extend(relativeTime);
 
 Mustache.escape = (text: Text) =>
   text.toString().replace('\n', ' ').replace(/\s+/g, ' ');
@@ -21,6 +25,7 @@ export class WebhookService {
       users: [],
     };
   }
+
   private getUser() {
     return {
       total: {
@@ -32,7 +37,7 @@ export class WebhookService {
     };
   }
 
-  private logger;
+  private logger = new Logger(WebhookService.name);
   private config;
   private pushGroup;
   private today;
@@ -40,14 +45,13 @@ export class WebhookService {
   private color: Color;
   private response: Resp;
 
-  constructor(request: FastifyRequest) {
-    this.logger = request.log;
+  constructor() {
     this.config = Config;
   }
 
   async translateMsg(data: any, platform, gitlabEvent, pushGroup) {
     this.pushGroup = pushGroup;
-    this.today = moment().format('YYYYMMDD');
+    this.today = dayjs().format('YYYYMMDD');
     const { template, response, color, showOriginal } = this.config;
 
     const isShowOriginal = process.env['SHOW_ORIGINAL'] || showOriginal;
@@ -79,6 +83,7 @@ export class WebhookService {
     const content = [];
     switch (gitlabEvent) {
       case X_GITLAB_EVENT.push:
+      case X_GITLAB_EVENT.pipeline:
         this.pushHookHandler(content, data);
         break;
       case X_GITLAB_EVENT.system:
@@ -214,7 +219,7 @@ export class WebhookService {
 
       // format duration
       build.GB_duration = build.duration
-        ? moment.duration(build.duration, 'seconds').humanize()
+        ? dayjs.duration(build.duration, 'seconds').humanize()
         : null;
 
       const stageBuilds = GB_builds.find((o) => o.stage === build.stage);
@@ -236,7 +241,7 @@ export class WebhookService {
         o.status === 'running' ||
         o.status === 'pending',
     );
-    this.logger.info('===> suppressBuilds', suppressBuilds);
+    this.logger.log('===> suppressBuilds', suppressBuilds);
 
     if (suppressBuilds) {
       // suppress msg
@@ -265,7 +270,7 @@ export class WebhookService {
       GB_pipelineUrl,
       GB_status: this.formatStatus(status),
       GB_sourceString,
-      GB_duration: moment.duration(duration, 'seconds').humanize(),
+      GB_duration: dayjs.duration(duration, 'seconds').humanize(),
       GB_builds,
     });
     return content.push(pipeline);
@@ -305,7 +310,7 @@ export class WebhookService {
       ...data,
       GB_stateAction,
       GB_stateString,
-      GB_updated_at: moment(updated_at).format('MM-DD HH:mm'),
+      GB_updated_at: dayjs(updated_at).format('MM-DD HH:mm'),
     });
 
     return content.push(merge_request);
