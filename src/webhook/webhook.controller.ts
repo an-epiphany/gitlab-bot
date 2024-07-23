@@ -21,12 +21,25 @@ export class WebhookController {
     @Headers() headers: any,
   ) {
     const { path } = params;
-    this.logger.log('====> Received headers:', headers);
-    this.logger.log('====> Received body:', body);
+
+    // check webhookUrl
+    const pushGroup = path.toUpperCase();
+    const webhookUrl =
+      process.env['WEBHOOK_URL' + (path ? '_' + pushGroup : '')];
+
+    this.logger.debug('`====> webhookUrl: %s', webhookUrl);
+    if (!webhookUrl) {
+      return { message: 'Webhook Url Not configured' };
+    }
+
+    const gitlabEvent = headers['x-gitlab-event'];
+    this.logger.debug({ message: 'Received headers', headers });
+    this.logger.debug({ message: `Received body`, body });
+    this.logger.log(`====> Received gitlabEvent: %s`, gitlabEvent);
 
     // check platform
     const platform = process.env['PLATFORM'] || Config.platform;
-    this.logger.log('platform: ', platform);
+    this.logger.log('platform: %s', platform);
 
     if (Config.supportPlatforms.indexOf(platform) === -1) {
       const errMsg = `====> platform "${platform}" is not supported, only support: ${Config.supportPlatforms.join(', ')}`;
@@ -34,18 +47,8 @@ export class WebhookController {
       return { message: errMsg };
     }
 
-    // check webhookUrl
-    const pushGroup = path.toUpperCase();
-    const webhookUrl =
-      process.env['WEBHOOK_URL' + (path ? '_' + pushGroup : '')];
-
-    this.logger.debug('`====> webhookUrl: ', webhookUrl);
-
-    let gitlabEvent = X_GITLAB_EVENT.push;
-
     // check x-gitlab-event
-    if (headers['x-gitlab-event']) {
-      gitlabEvent = headers['x-gitlab-event'];
+    if (gitlabEvent) {
       if (Object.values(X_GITLAB_EVENT).indexOf(gitlabEvent) === -1) {
         const errMsg = `====> x-gitlab-event "${gitlabEvent}" is not supported}`;
         this.logger.error(errMsg);
@@ -53,15 +56,17 @@ export class WebhookController {
       }
     }
 
-    const message = await this.webhookService.translateMsg(
+    const translateMsg = await this.webhookService.translateMsg(
       body,
       platform,
       gitlabEvent,
       pushGroup,
     );
 
+    this.logger.debug({ message: 'translateMsg', translateMsg });
+
     const axiosResponse = await firstValueFrom(
-      this.httpService.post(webhookUrl, message, {
+      this.httpService.post(webhookUrl, translateMsg, {
         headers: {
           'Content-Type': 'application/json; charset=UTF-8',
         },

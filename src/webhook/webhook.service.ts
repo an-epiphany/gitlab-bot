@@ -2,7 +2,6 @@ import { Injectable, Logger } from '@nestjs/common';
 import dayjs from 'dayjs';
 import duration from 'dayjs/plugin/duration';
 import relativeTime from 'dayjs/plugin/relativeTime';
-import 'dayjs/locale/zh.js';
 import Mustache from 'mustache';
 import { EVENT_TYPE, OBJECT_KIND, X_GITLAB_EVENT } from '../const';
 import { Config } from 'src/config';
@@ -153,8 +152,8 @@ export class WebhookService {
       return false;
     }
 
-    this.logger.debug('template: ', template.push);
-    this.logger.debug('content: ', content);
+    this.logger.debug({ template: template.push });
+    this.logger.debug(content);
     if (template[event_name]) {
       // match template by event_name first
       content.push(Mustache.render(template[event_name], data));
@@ -189,8 +188,8 @@ export class WebhookService {
 
     const template = this.template;
 
-    this.logger.debug('template: ', template.push);
-    this.logger.debug('content: ', content);
+    this.logger.debug({ template: template.push });
+    this.logger.debug(content);
     const GB_changes = this.getChangesFromCommits(commits);
     const push = Mustache.render(template.push, {
       ...data,
@@ -210,42 +209,42 @@ export class WebhookService {
     const GB_pipelineUrl = web_url + '/pipelines/' + GB_pipelineId;
     const GB_builds = []; //{ stage: '', builds: [] }
 
-    builds.map((build) => {
-      // add status color and string
-      build.GB_status = this.formatStatus(build.status);
+    const ignoreStatuses = new Set([
+      'created',
+      'running',
+      'pending',
+      'skipped',
+      'manual',
+    ]);
 
-      // add tigger user and url
-      build.GB_user = build.user.name === name ? '' : build.user.name;
-      build.GB_url = web_url + '/-/jobs/' + build.id;
+    builds
+      .filter((o) => !ignoreStatuses.has(o.status))
+      .map((build) => {
+        // add status color and string
+        build.GB_status = this.formatStatus(build.status);
 
-      // format duration
-      build.GB_duration = build.duration
-        ? dayjs.duration(build.duration, 'seconds').humanize()
-        : null;
+        // add tigger user and url
+        build.GB_user = build.user.name === name ? '' : build.user.name;
+        build.GB_url = web_url + '/-/jobs/' + build.id;
 
-      const stageBuilds = GB_builds.find((o) => o.stage === build.stage);
+        // format duration
+        build.GB_duration = build.duration
+          ? dayjs.duration(build.duration, 'seconds').humanize()
+          : null;
 
-      if (stageBuilds) {
-        stageBuilds.builds.push(build);
-      } else {
-        GB_builds.push({
-          stage: build.stage,
-          builds: [build],
-        });
-      }
-    });
+        const stageBuilds = GB_builds.find((o) => o.stage === build.stage);
 
-    // find any build not finished (success, failed, skipped)
-    const suppressBuilds = builds.find(
-      (o) =>
-        o.status === 'created' ||
-        o.status === 'running' ||
-        o.status === 'pending',
-    );
-    this.logger.log('===> suppressBuilds', suppressBuilds);
+        if (stageBuilds) {
+          stageBuilds.builds.push(build);
+        } else {
+          GB_builds.push({
+            stage: build.stage,
+            builds: [build],
+          });
+        }
+      });
 
-    if (suppressBuilds) {
-      // suppress msg
+    if (!GB_builds.length) {
       return false;
     }
 
@@ -389,8 +388,7 @@ export class WebhookService {
 
   formatStatus(status) {
     let color = this.color.grey,
-      str,
-      isNotify = true;
+      str;
     switch (status) {
       case 'failed':
         color = this.color.red;
@@ -406,7 +404,6 @@ export class WebhookService {
       case 'pending':
         color = this.color.red;
         str = '准备中';
-        isNotify = false;
         break;
       case 'canceled':
         str = '已取消';

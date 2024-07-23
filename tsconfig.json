@@ -1,4 +1,5 @@
 {
+  "$schema": "https://json.schemastore.org/tsconfig",
   "compilerOptions": {
     "baseUrl": ".",
     "target": "ES2021",
@@ -23,6 +24,9 @@
     "esModuleInterop": true,
     "skipLibCheck": true
   },
-  "include": ["src/**/*", "test/**/*", "bin/**/*"],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules"],
+  "include": [
+    ".eslintrc.*",
+    "**/*.ts",
+  ]
 }
